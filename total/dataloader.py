@@ -1,9 +1,7 @@
 import os
-import os.path as path
 import scipy.io as scio
-import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset
 from sklearn.model_selection import KFold
 
 class EEGData(Dataset):
@@ -24,7 +22,7 @@ def makedir(path):
     if not folder:
         os.makedirs(path)
 
-def getdata_inside_subject(K=5):
+def getdata_inside_subject(K=5,offset=False,offset_num=0,offset_step=1):
     KF = KFold(n_splits=K,shuffle=True,random_state=0)
     file_path_data = 'E:\pycharmproject\pytorch1\preprocessed_data\data'
     file_path_label = 'E:\pycharmproject\pytorch1\preprocessed_data\label'
@@ -52,6 +50,8 @@ def getdata_inside_subject(K=5):
         for train_index, test_index in KF.split(X):
 
             X_train, X_test = X[train_index, :, :], X[test_index, :, :]
+            if offset:
+                X_train = data_preprocessing(X_train, offset_num, offset_step)
             Y_train, Y_test = Y[train_index], Y[test_index]
 
             Train_set = EEGData(X_train, Y_train)
@@ -62,7 +62,7 @@ def getdata_inside_subject(K=5):
 
     return R_trainDataset,R_testDataset
 
-def getdata_cross_subject(K=5):
+def getdata_cross_subject(K=5,offset=False,offset_num=0,offset_step=1):
     KF = KFold(n_splits=K,shuffle=True,random_state=0)
     file_path_data = 'E:\pycharmproject\pytorch1\preprocessed_data\data'
     file_path_label = 'E:\pycharmproject\pytorch1\preprocessed_data\label'
@@ -96,6 +96,8 @@ def getdata_cross_subject(K=5):
 
     for train_index, test_index in KF.split(Dataline):
         X_train, X_test = Dataline[train_index, :, :], Dataline[test_index, :, :]
+        if offset:
+            X_train = data_preprocessing(X_train,offset_num,offset_step)
         Y_train, Y_test = Labelline[train_index], Labelline[test_index]
 
         Train_set = EEGData(X_train, Y_train)
@@ -106,6 +108,19 @@ def getdata_cross_subject(K=5):
 
     return R_trainDataset,R_testDataset
 
+def data_preprocessing(x:torch.Tensor,offset:int,step=1):
+    channel_num=x.shape[1]
+    time_length=x.shape[2]
+    for index in range(0,channel_num,step):
+        f=torch.cat((x[:,index,time_length-offset:time_length+1],x[:,index,0:time_length-offset]),dim=1)
+        x[:,index,:]=f
+    return x
+
+
+
 if __name__ == '__main__':
-    x_train,x_test = getdata_cross_subject()
-    print(len(x_train))
+    pass
+    # x_train,x_test = getdata_cross_subject()
+    # print(len(x_train))
+    # x_end = data_preprocessing(torch.FloatTensor(torch.rand(size=(912,21,170))),13)
+    # print(x_end.shape)
