@@ -120,7 +120,7 @@ def data_preprocessing(x:torch.Tensor,offset:int,step=1):
 
 if __name__ == '__main__':
     pass
-    # x_train,x_test = getdata_cross_subject()
-    # print(len(x_train))
+    x_train,x_test = getdata_cross_subject(5)
+    print(len(x_train))
     # x_end = data_preprocessing(torch.FloatTensor(torch.rand(size=(912,21,170))),13)
     # print(x_end.shape)

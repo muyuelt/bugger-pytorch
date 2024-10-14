@@ -177,7 +177,7 @@ if __name__ =="__main__":
     Channel = 21
     Time_length = 170
     subject_num = 1
-    train_epoch = 300
+    train_epoch = 50
     device = 'cpu'
     model = EEGNet()
     print('give the mode')
@@ -190,7 +190,10 @@ if __name__ =="__main__":
             batch_size=batch_size,
             subject_num=subject_num,
             device=device,
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
+            offset=True,
+            offset_step=2,
+            offset_num=5
         )
     else:
         train_cross_subject(
