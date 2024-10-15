@@ -12,11 +12,11 @@ class EEG_Deformer(nn.Module):
         self.tanh = nn.Tanh()
 
 
-
     def forward(self,x):
         x_padding = self.padding_zero(x)
         offset_step = self.tanh(self.offset_conv(x_padding))
-        return offset_step
+        offset_num = self.calculate_offset_num(x,offset_step)
+        return offset_num
 
     def padding_zero(self,x:torch.Tensor):
         b,f,c,t = x.shape
@@ -32,8 +32,46 @@ class EEG_Deformer(nn.Module):
         #适应填充后的x向量
         offset_position = offset_position + self.time_convolution_length//2+self.offset_length
         #计算具体x内容
-        offset_left = torch.detach().floor(offset_position)
+        offset_left = offset_position.detach().floor()
         offset_right = offset_left+1
+        offset_left_ratio = offset_position - offset_left
+        offset_right_ratio = offset_right - offset_position
+        offset_left_num_0=[]
+        for batch_size_i in range(len(offset_left)):
+            batch_size = offset_left[batch_size_i]
+            offset_left_num_1 =[]
+            for channel_size_i in range(len(batch_size)):
+                channel_size = batch_size[channel_size_i]
+                offset_left_num_2 =[]
+                for time_size_i in range(len(channel_size)):
+                    time_size = channel_size[time_size_i]
+                    offset_left_num_3 =[]
+                    for idx in time_size:
+                        offset_left_num_3.append(x_add_tail_head[batch_size_i,0,channel_size_i,int(idx)].item())
+                    offset_left_num_2.append(offset_left_num_3)
+                offset_left_num_1.append(offset_left_num_2)
+            offset_left_num_0.append(offset_left_num_1)
+        offset_left_num = torch.tensor(offset_left_num_0)
+        offset_right_num_0=[]
+        for batch_size_i in range(len(offset_right)):
+            batch_size = offset_right[batch_size_i]
+            offset_right_num_1 =[]
+            for channel_size_i in range(len(batch_size)):
+                channel_size = batch_size[channel_size_i]
+                offset_right_num_2 =[]
+                for time_size_i in range(len(channel_size)):
+                    time_size = channel_size[time_size_i]
+                    offset_right_num_3 =[]
+                    for idx in time_size:
+                        offset_right_num_3.append(x_add_tail_head[batch_size_i,0,channel_size_i,int(idx)].item())
+                    offset_right_num_2.append(offset_right_num_3)
+                offset_right_num_1.append(offset_right_num_2)
+            offset_right_num_0.append(offset_right_num_1)
+        offset_right_num = torch.tensor(offset_left_num_0)
+        offset_num = torch.mul(offset_left_ratio,offset_left_num)+torch.mul(offset_right_ratio,offset_right_num)
+        offset_num = torch.sum(offset_num,dim=3).unsqueeze(dim=3).permute(0,3,1,2)
+        return offset_num
+
 
 
 
@@ -64,14 +102,13 @@ class EEG_Deformer(nn.Module):
     @staticmethod
     def get_position(convolution_length):
         a = range(-(convolution_length//2),(convolution_length+1)//2)
-
         return list(a)
 
 
 if __name__ == '__main__':
     model = EEG_Deformer(7,2)
-    output = model(torch.randn((900,1,21,170))*5)
+    output = model(torch.randn((1,1,2,50))*5)
     print(output[0,:,:,:])
-    offset_p = model.get_convolution_position(torch.randn((900,21,170,7)))
-    print(offset_p.shape)
-    model.calculate_offset_num(torch.randn((900,1,21,170)),output)
+    # offset_p = model.get_convolution_position(torch.randn((900,21,170,7)))
+    # print(offset_p.shape)
+    # model.calculate_offset_num(torch.randn((900,1,21,170)),output)
