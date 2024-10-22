@@ -6,7 +6,6 @@ class EEGNet(nn.Module):
         super(EEGNet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False)
         self.bn1 = nn.BatchNorm2d(8)
-
         self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8)
         self.bn2 = nn.BatchNorm2d(16)
         self.ac2 = nn.ELU()

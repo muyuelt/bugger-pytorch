@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import scipy.io as scio
 import torch
 from torch.utils.data import Dataset
@@ -62,6 +64,44 @@ def getdata_inside_subject(K=5,offset=False,offset_num=0,offset_step=1):
 
     return R_trainDataset,R_testDataset
 
+def getdata_vary_inside_subject(k=5):
+    KF = KFold(n_splits=k, shuffle=True, random_state=0)
+    file_path_data = 'E:\\pycharmproject\\pytorch1\\preprocessed_data\\varying_data'
+    file_path_label = 'E:\\pycharmproject\\pytorch1\\preprocessed_data\\label'
+    files_data = os.listdir(file_path_data)
+    files_label = os.listdir(file_path_label)
+    Data = []
+    Label = []
+    R_trainDataset = []
+    R_testDataset = []
+    for data_name in files_data:
+        loader_data_dict = np.load(file_path_data + '/' + data_name)
+        loader_data = torch.FloatTensor(loader_data_dict)
+        Data.append(loader_data)
+        # print(loader_data.shape)
+
+    for label_name in files_label:
+        loader_label_dict = scio.loadmat(file_path_label + '/' + label_name)
+        loader_label = torch.Tensor(loader_label_dict['label'])
+        Label.append(loader_label)
+        # print(loader_label.shape)
+
+    for index in range(len(Data)):
+        X = Data[index]
+        Y = Label[index]
+        for train_index, test_index in KF.split(X):
+
+            X_train, X_test = X[train_index, :, :], X[test_index, :, :]
+            Y_train, Y_test = Y[train_index], Y[test_index]
+
+            Train_set = EEGData(X_train, Y_train)
+            Test_set = EEGData(X_test, Y_test)
+
+            R_trainDataset.append(Train_set)
+            R_testDataset.append(Test_set)
+
+    return R_trainDataset, R_testDataset
+
 def getdata_cross_subject(K=5,offset=False,offset_num=0,offset_step=1):
     KF = KFold(n_splits=K,shuffle=True,random_state=0)
     file_path_data = 'E:\pycharmproject\pytorch1\preprocessed_data\data'
@@ -120,7 +160,7 @@ def data_preprocessing(x:torch.Tensor,offset:int,step=1):
 
 if __name__ == '__main__':
     pass
-    x_train,x_test = getdata_cross_subject(5)
+    x_train,x_test = getdata_vary_inside_subject(5)
     print(len(x_train))
     # x_end = data_preprocessing(torch.FloatTensor(torch.rand(size=(912,21,170))),13)
     # print(x_end.shape)

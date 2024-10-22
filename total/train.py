@@ -2,13 +2,25 @@ import time
 import torch
 from torch.utils.data import dataloader
 from model import EEGNet
-from dataloader import getdata_cross_subject,getdata_inside_subject
+from model_for_varying import VMFNet
+from dataloader import getdata_cross_subject,getdata_inside_subject,getdata_vary_inside_subject
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-def train_inside_subject(k_fold_num,model,train_epoch,batch_size,subject_num,device,learning_rate,offset=False,offset_num=0,offset_step=1):
+SEED = 0
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+RANDOM_STATE = SEED
+
+
+
+def train_inside_subject(k_fold_num,model,train_epoch,batch_size,subject_num,device,learning_rate,vary=False,offset=False,offset_num=0,offset_step=1):
     #data_loader
-    train_data, test_data = getdata_inside_subject(k_fold_num,offset=offset,offset_num=offset_num,offset_step=offset_step)
+    train_data, test_data = None, None
+    if vary:
+        train_data, test_data = getdata_vary_inside_subject(k_fold_num)
+    else:
+        train_data, test_data = getdata_inside_subject(k_fold_num,offset=offset,offset_num=offset_num,offset_step=offset_step)
     Train_loss_subject = []
     Train_acc_subject = []
     Test_acc_subject = []
@@ -34,7 +46,7 @@ def train_inside_subject(k_fold_num,model,train_epoch,batch_size,subject_num,dev
             now_model = model
             now_model.reset_param()
             criterion = nn.CrossEntropyLoss().to(device)
-            optimizer = torch.optim.Adam(model.parameters(),lr=learning_rate,)
+            optimizer = torch.optim.Adam(model.parameters(),lr=learning_rate)
             r_loss,r_acc,t_acc =train_model(model=now_model,
                                      criterion=criterion,
                                      optimizer=optimizer,
@@ -111,7 +123,7 @@ def train_cross_subject(k_fold_num,model,train_epoch,batch_size,device,learning_
 def train_model(model, criterion, optimizer , train_data_loader, test_data_loader, epoch_num, batch_size, train_name,device):
     train_loss = []
     train_acc = []
-    test_acc=0
+    test_acc= 0
     print('---------------------'+train_name+'---------------------')
     for turn in range(train_epoch):
         print('---------------------Training(epoch: %d )----------------------' % (turn + 1))
@@ -172,16 +184,17 @@ def show_result(train_acc:torch.Tensor,test_acc):
 
 if __name__ =="__main__":
     K_fold_num = 5
-    batch_size = 80
-    learning_rate = 0.0001
+    batch_size = 100
+    learning_rate = 0.005
     Channel = 21
     Time_length = 170
     subject_num = 1
-    train_epoch = 50
-    device = 'cpu'
+    train_epoch = 300
+    vary = True
+    device = 'cuda'
     model = EEGNet()
     print('give the mode')
-    inputs = input()
+    inputs = 'inside'
     if(inputs=='inside'):
         train_inside_subject(
             k_fold_num=K_fold_num,
@@ -191,6 +204,7 @@ if __name__ =="__main__":
             subject_num=subject_num,
             device=device,
             learning_rate=learning_rate,
+            vary=vary,
             offset=True,
             offset_step=2,
             offset_num=5

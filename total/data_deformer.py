@@ -92,7 +92,7 @@ class EEG_Deformer(nn.Module):
     def padding_tail_and_head(self,x:torch.tensor):
         x_time_length = x.shape[3]
         x_head = x[:,:,:,:self.time_convolution_length//2+self.offset_length]
-        x_tail = x[:,:,:,x_time_length-((self.time_convolution_length-1)//2+self.offset_length):]
+        x_tail = x[:,:,:,x_time_length-((self.time_convolution_length-1)//2+self.offset_length):x_time_length+1]
         x_new = torch.cat((x_tail,x,x_head),dim=3)
         return x_new
 
@@ -107,7 +107,7 @@ class EEG_Deformer(nn.Module):
 
 if __name__ == '__main__':
     model = EEG_Deformer(7,2)
-    output = model(torch.randn((1,1,2,50))*5)
+    output = model(torch.randn((10,1,21,170))*5)
     print(output[0,:,:,:])
     # offset_p = model.get_convolution_position(torch.randn((900,21,170,7)))
     # print(offset_p.shape)
