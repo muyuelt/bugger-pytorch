@@ -12,9 +12,13 @@ torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 RANDOM_STATE = SEED
 
+def save_result(result_path,result):
+
+    with open(result_path,'a') as result_file:
+        result_file.write('\n'+result)
 
 
-def train_inside_subject(k_fold_num,model,train_epoch,batch_size,subject_num,device,learning_rate,vary=False,offset=False,offset_num=0,offset_step=1):
+def train_inside_subject(k_fold_num,model,train_epoch,batch_size,subject_num,device,learning_rate,result_path,vary=False,offset=False,offset_num=0,offset_step=1):
     #data_loader
     train_data, test_data = None, None
     if vary:
@@ -69,8 +73,14 @@ def train_inside_subject(k_fold_num,model,train_epoch,batch_size,subject_num,dev
         Train_loss_subject.append(one_subject_loss)
         Test_acc_subject.append(one_subject_test_acc.item())
 
+    save_result(result_path,'----------------------------------------------------------------------------------------------------------------')
+    save_result(result_path,'train_for_subject_with epoch='+str(train_epoch))
+
     for i in range(len(Train_loss_subject)):
         print('train_subject'+str(i+1)+'_acc:'+str(Train_acc_subject[i])+
+              ' train_subject'+str(i+1)+'_loss:'+str(Train_loss_subject[i])+
+              ' test_subject'+str(i+1)+'_acc:'+str(Test_acc_subject[i]))
+        save_result(result_path,'train_subject'+str(i+1)+'_acc:'+str(Train_acc_subject[i])+
               ' train_subject'+str(i+1)+'_loss:'+str(Train_loss_subject[i])+
               ' test_subject'+str(i+1)+'_acc:'+str(Test_acc_subject[i]))
 
@@ -183,16 +193,18 @@ def show_result(train_acc:torch.Tensor,test_acc):
 
 
 if __name__ =="__main__":
-    K_fold_num = 5
+    K_fold_num = 10
     batch_size = 100
     learning_rate = 0.005
     Channel = 21
     Time_length = 170
-    subject_num = 1
+    subject_num = 19
     train_epoch = 300
     vary = True
     device = 'cuda'
     model = EEGNet()
+    result_path_inside = '../result_subject_vary.txt'
+    result_path_cross = '../result_cross.txt'
     print('give the mode')
     inputs = 'inside'
     if(inputs=='inside'):
@@ -204,8 +216,9 @@ if __name__ =="__main__":
             subject_num=subject_num,
             device=device,
             learning_rate=learning_rate,
+            result_path=result_path_inside,
             vary=vary,
-            offset=True,
+            offset=False,
             offset_step=2,
             offset_num=5
         )

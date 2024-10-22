@@ -2,7 +2,7 @@ import os
 import scipy.io as scio
 import numpy as np
 
-file_path_data = 'E:\pycharmproject\pytorch1\preprocessed_data\data'
+file_path_data = '../preprocessed_data/data'
 files_data = os.listdir(file_path_data)
 Data = []
 for data_name in files_data:
