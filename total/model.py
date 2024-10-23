@@ -1,6 +1,12 @@
 import torch.nn as nn
 import torch
 
+SEED = 0
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+RANDOM_STATE = SEED
+
+
 class EEGNet(nn.Module):
     def __init__(self):
         super(EEGNet, self).__init__()
@@ -22,15 +28,15 @@ class EEGNet(nn.Module):
 
         self.flatten = nn.Flatten()
         self.f1 = nn.Linear(16*(170//32), 5)
-        self.reset_param()
+        # self.reset_param()
 
-    def reset_param(self):
-        for m in self.modules():
-            if isinstance(m,nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight,mode='fan_in')
-            elif isinstance(m,nn.Linear):
-                nn.init.xavier_normal_(m.weight)
-                nn.init.constant_(m.bias,0)
+    # def reset_param(self):
+    #     for m in self.modules():
+    #         if isinstance(m,nn.Conv2d):
+    #             nn.init.kaiming_normal_(m.weight,mode='fan_in')
+    #         elif isinstance(m,nn.Linear):
+    #             nn.init.xavier_normal_(m.weight)
+    #             nn.init.constant_(m.bias,0)
 
     def forward(self, x):
         x = torch.reshape(x, (len(x), 1, 21, 170))
@@ -52,3 +58,53 @@ class EEGNet(nn.Module):
         x = self.flatten(x)
         y = self.f1(x)
         return y
+
+
+class binary_EEGNet(nn.Module):
+    def __init__(self):
+        super(binary_EEGNet, self).__init__()
+        self.block1 = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False),
+            nn.BatchNorm2d(8),
+            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8),
+            nn.BatchNorm2d(16),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 4)),
+            nn.Dropout(p=0.5),
+            # D*F1 == F2
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 16), bias=False,
+                                 padding=(0, 8), groups=16),
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 1), bias=False),
+            nn.BatchNorm2d(16),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 8)),
+            nn.Dropout(p=0.5),
+            nn.Flatten()
+        )
+        self.block2 = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False),
+            nn.BatchNorm2d(8),
+            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8),
+            nn.BatchNorm2d(16),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 4)),
+            nn.Dropout(p=0.5),
+            # D*F1 == F2
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 16), bias=False,
+                                 padding=(0, 8), groups=16),
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 1), bias=False),
+            nn.BatchNorm2d(16),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 8)),
+            nn.Dropout(p=0.5),
+            nn.Flatten()
+        )
+        self.f1 = nn.Linear(16 * (170 // 32) * 2, 5)
+
+    def forward(self, x1, x2):
+        x1 = torch.reshape(x1, (len(x1), 1, 21, 170))
+        x2 = torch.reshape(x2,(len(x2), 1, 21, 170))
+        x1 = self.block1(x1)
+        x2 = self.block2(x2)
+        x = torch.cat((x1, x2), dim=1)
+        return self.f1(x)
