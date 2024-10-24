@@ -158,7 +158,7 @@ def train_model(model, criterion, optimizer , train_data_loader, test_data_loade
     test_acc= 0
     print('---------------------'+train_name+'---------------------')
     for turn in range(train_epoch):
-        print('---------------------Training(epoch: %d )----------------------' % (turn + 1))
+        print('---------------------'+train_name+'+Training(epoch: %d )----------------------' % (turn + 1))
         t_s = time.time()
         model.train()
         model.to(device)
@@ -253,12 +253,12 @@ if __name__ =="__main__":
     Time_length = 170
     subject_num = 19
     train_epoch = 500
-    vary = True
-    offset = False
+    vary = False
+    offset = True
     offset_step = 1
     offset_num = 20
     device = 'cuda'
-    model = EEGNet()
+    model = VMFNet()
     result_path_inside = '../result_subject_vary.txt'
     result_path_cross = '../result_cross.txt'
     print('give the mode')
