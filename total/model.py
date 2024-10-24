@@ -63,6 +63,37 @@ class EEGNet(nn.Module):
         return y
 
 
+class same_EEGNet(nn.Module):
+    def __init__(self):
+        super(same_EEGNet, self).__init__()
+        self.block1 = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False),
+            nn.BatchNorm2d(8),
+            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8),
+            nn.BatchNorm2d(16),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 4)),
+            nn.Dropout(p=0.5),
+            # D*F1 == F2
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 16), bias=False,
+                      padding=(0, 8), groups=16),
+            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 1), bias=False),
+            nn.BatchNorm2d(16),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 8)),
+            nn.Dropout(p=0.5),
+            nn.Flatten()
+        )
+        self.f1 = nn.Linear(16 * (170 // 32) * 2, 5)
+    def forward(self,x1,x2):
+        x1 = torch.reshape(x1, (len(x1), 1, 21, 170))
+        x2 = torch.reshape(x2,(len(x2), 1, 21, 170))
+        x1 = self.block1(x1)
+        x2 = self.block1(x2)
+        x = torch.cat((x1, x2), dim=1)
+        return self.f1(x)
+
+
 class binary_EEGNet(nn.Module):
     def __init__(self):
         super(binary_EEGNet, self).__init__()
@@ -110,8 +141,9 @@ class binary_EEGNet(nn.Module):
         x2 = torch.reshape(x2,(len(x2), 1, 21, 170))
         x1 = self.block1(x1)
         x2 = self.block2(x2)
-        x = torch.cat((x1, x2), dim=1).unsqueeze(dim=0)
-        x = self.attn(x).squeeze(dim=0)
+        x = torch.cat((x1, x2), dim=1)
+        # x = x.unsqueeze(dim=0)
+        #x = self.attn(x).squeeze(dim=0)
         return self.f1(x)
 
 

@@ -1,7 +1,7 @@
 import time
 import torch
 from torch.utils.data import dataloader
-from model import EEGNet,binary_EEGNet
+from model import EEGNet,binary_EEGNet,same_EEGNet
 from model_for_varying import VMFNet
 from dataloader import getdata_cross_subject,getdata_inside_subject,getdata_vary_inside_subject
 import torch.nn as nn
@@ -65,7 +65,7 @@ def train_inside_subject(k_fold_num,train_epoch,batch_size,subject_num,device,le
             train_name = 'subject-'+str(i+1)+'-k_fold-'+str(j+1)
             now_model = None
             if offset:
-                now_model = binary_EEGNet()
+                now_model = same_EEGNet()
             else:
                 now_model = EEGNet()
             criterion = nn.CrossEntropyLoss().to(device)
@@ -247,7 +247,7 @@ def show_result(train_acc:torch.Tensor,test_acc):
 
 if __name__ =="__main__":
     K_fold_num = 10
-    batch_size = 100
+    batch_size = 400
     learning_rate = 0.005
     Channel = 21
     Time_length = 170
@@ -259,7 +259,7 @@ if __name__ =="__main__":
     offset_num = 20
     device = 'cuda'
     model = VMFNet()
-    result_path_inside = '../result_subject_vary.txt'
+    result_path_inside = '../result_subject_binary.txt'
     result_path_cross = '../result_cross.txt'
     print('give the mode')
     inputs = 'inside'
