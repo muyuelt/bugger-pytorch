@@ -249,11 +249,11 @@ def show_result(train_acc:torch.Tensor,test_acc):
 
 if __name__ =="__main__":
     K_fold_num = 10
-    batch_size = 400
+    batch_size = 100
     learning_rate = 0.005
     Channel = 21
     Time_length = 170
-    subject_num = 19
+    subject_num = 1
     train_epoch = 500
     vary = True
     offset = False

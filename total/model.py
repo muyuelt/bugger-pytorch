@@ -69,6 +69,7 @@ class vary_attention_EEGNet(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False)
         self.vary_pool1 = nn.AvgPool2d(kernel_size=(1,100),stride=1,padding=(0,50))
         self.vary_conv1 = nn.Conv2d(in_channels=1,out_channels=8,kernel_size=(1,1))
+        self.se_1 = se_vary(171,3)
         self.bn1 = nn.BatchNorm2d(8)
         self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8)
         self.vary_pool2 = nn.AvgPool2d(kernel_size=(21,1))
@@ -82,6 +83,7 @@ class vary_attention_EEGNet(nn.Module):
                                  padding=(0, 8), groups=16)
         self.conv3_2 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 1), bias=False)
         self.vary_pool3 = nn.AvgPool2d(kernel_size=(1,16),stride=1,padding=(0,8))
+        self.se_2 = se_vary(43,3)
         self.bn3 = nn.BatchNorm2d(16)
         self.ac3 = nn.ELU()
         self.av3 = nn.AvgPool2d(kernel_size=(1, 8))
@@ -90,18 +92,17 @@ class vary_attention_EEGNet(nn.Module):
         self.flatten = nn.Flatten()
         self.f1 = nn.Linear(16*(170//32), 5)
 
-        self.softmax = nn.Softmax()
 
     def forward(self,x,vary):
         x = torch.reshape(x, (len(x), 1, 21, 170))
         vary = torch.reshape(vary, (len(x), 1, 21, 170))
         vary = self.vary_pool1(vary)
         vary = self.vary_conv1(vary)
-        vary = self.softmax(vary)*vary.shape[3]
         vary = self.bn1(vary)
+        vary_se = self.se_1(vary)
         x = self.conv1(x)
         x = self.bn1(x)
-        x = torch.mul(x,vary)
+        x = torch.mul(x,vary_se)
         vary = self.vary_pool2(vary)
         vary = self.vary_conv2(vary)
         vary = self.bn2(vary)
@@ -112,12 +113,12 @@ class vary_attention_EEGNet(nn.Module):
         x = self.av2(x)
         x = self.dr2(x)
         vary = self.vary_pool3(vary)
-        vary = self.softmax(vary)*vary.shape[3]
         vary = self.bn3(vary)
+        vary_se = self.se_2(vary)
         x = self.conv3_1(x)
         x = self.conv3_2(x)
         x = self.bn3(x)
-        x = torch.mul(x,vary)
+        x = torch.mul(x,vary_se)
         x = self.ac3(x)
         x = self.av3(x)
         x = self.dr3(x)
@@ -125,6 +126,17 @@ class vary_attention_EEGNet(nn.Module):
         y = self.f1(x)
         return y
 
+
+class se_vary(nn.Module):
+    def __init__(self,time_length,r):
+        super(se_vary,self).__init__()
+        self.fc1 = nn.Linear(time_length,time_length//r)
+        self.Relu = nn.ReLU()
+        self.fc2 = nn.Linear(time_length//r,time_length)
+        self.sig = nn.Sigmoid()
+    def forward(self,x):
+        x = self.Relu(self.fc1(x))
+        return self.sig(self.fc2(x))
 
 
 class binary_EEGNet(nn.Module):
@@ -309,7 +321,7 @@ class time_Attention_block(nn.Module):
 if __name__ =='__main__':
     model = vary_attention_EEGNet()
     output = model(torch.rand((900,1,21,170)),torch.rand((900,1,21,170)))
-    print(output.shape)
+    print(output[1])
     # model = time_Attention_block(
     #     time_length=5,
     #     feed_mid_length=10
