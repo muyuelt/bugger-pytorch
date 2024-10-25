@@ -1,7 +1,7 @@
 import time
 import torch
 from torch.utils.data import dataloader
-from model import EEGNet,binary_EEGNet,same_EEGNet
+from model import EEGNet,binary_EEGNet,vary_attention_EEGNet
 from model_for_varying import VMFNet
 from dataloader import getdata_cross_subject,getdata_inside_subject,getdata_vary_inside_subject
 import torch.nn as nn
@@ -23,7 +23,8 @@ def train_inside_subject(k_fold_num,train_epoch,batch_size,subject_num,device,le
     train_data, test_data = None, None
     train_data_moved,test_data_moved = None,None
     if vary:
-        train_data, test_data = getdata_vary_inside_subject(k_fold_num)
+        train_data_moved, test_data_moved = getdata_vary_inside_subject(k_fold_num)
+        train_data, test_data = getdata_inside_subject(k_fold_num)
     else:
         train_data, test_data = getdata_inside_subject(k_fold_num)
         if offset:
@@ -50,7 +51,7 @@ def train_inside_subject(k_fold_num,train_epoch,batch_size,subject_num,device,le
             )
             train_data_loader_moved = None
             test_data_loader_moved = None
-            if offset:
+            if offset | vary:
                 train_data_loader_moved = dataloader.DataLoader(
                     dataset=train_data_moved[i*k_fold_num+j],
                     shuffle=True,
@@ -61,11 +62,11 @@ def train_inside_subject(k_fold_num,train_epoch,batch_size,subject_num,device,le
                     shuffle=True
                 )
 
-
             train_name = 'subject-'+str(i+1)+'-k_fold-'+str(j+1)
             now_model = None
-            if offset:
-                now_model = same_EEGNet()
+            if offset | vary:
+                # now_model = binary_EEGNet(cat_or_add_0_1=True)
+                now_model = vary_attention_EEGNet()
             else:
                 now_model = EEGNet()
             criterion = nn.CrossEntropyLoss().to(device)
@@ -79,6 +80,7 @@ def train_inside_subject(k_fold_num,train_epoch,batch_size,subject_num,device,le
                                      batch_size=batch_size,
                                      train_name=train_name,
                                      device=device,
+                                     vary=vary,
                                      offset=offset,
                                      train_data_loader_moved=train_data_loader_moved,
                                      test_data_loader_moved=test_data_loader_moved
@@ -152,7 +154,7 @@ def train_cross_subject(k_fold_num,model,train_epoch,batch_size,device,learning_
     print('train_acc:'+str(Train_acc)+' train_loss:'+str(Train_loss)+' test_acc:'+str(test_acc))
 
 
-def train_model(model, criterion, optimizer , train_data_loader, test_data_loader, epoch_num, batch_size, train_name,device,offset,train_data_loader_moved=None,test_data_loader_moved=None):
+def train_model(model, criterion, optimizer , train_data_loader, test_data_loader, epoch_num, batch_size, train_name,device,vary,offset,train_data_loader_moved=None,test_data_loader_moved=None):
     train_loss = []
     train_acc = []
     test_acc= 0
@@ -164,7 +166,7 @@ def train_model(model, criterion, optimizer , train_data_loader, test_data_loade
         model.to(device)
         acc, num = 0, 0
         running_loss = 0
-        if offset:
+        if offset | vary:
             for (data_x, data_y), (data_x_moved, _) in zip(train_data_loader,train_data_loader_moved):
                 input = data_x.to(device)
                 input_two = data_x_moved.to(device)
@@ -208,7 +210,7 @@ def train_model(model, criterion, optimizer , train_data_loader, test_data_loade
     print('---------------------Testing for '+train_name+'----------------------')
     model.eval()
     num =0
-    if offset:
+    if offset | vary:
         for (data_x, data_y), (data_x_moved, _) in zip(test_data_loader,test_data_loader_moved):
             input = data_x.to(device)
             input_two = data_x_moved.to(device)
@@ -253,13 +255,13 @@ if __name__ =="__main__":
     Time_length = 170
     subject_num = 19
     train_epoch = 500
-    vary = False
-    offset = True
+    vary = True
+    offset = False
     offset_step = 1
     offset_num = 20
     device = 'cuda'
     model = VMFNet()
-    result_path_inside = '../result_subject_binary.txt'
+    result_path_inside = '../result_subject_binary_vary.txt'
     result_path_cross = '../result_cross.txt'
     print('give the mode')
     inputs = 'inside'

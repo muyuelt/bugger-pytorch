@@ -15,7 +15,8 @@ for idx in range(len(Data)):
     subject = ['A','A','B','B','B','B','C','C','E','E','E','F','F','F','G','G','H','I','I']
     b,c,t = data.shape
     var_data = data[:,:,1:] - data[:,:,0:169]
+    var_data = np.abs(var_data)
     print(var_data.max())
     varied_data = np.concatenate((np.zeros(shape=(b,c,1)),var_data),axis=2)
-    np.save('../preprocessed_data/varying_data/'+str(idx+1)+'_Subject'+subject[idx]+'_data.npy',varied_data)
+    np.save('../preprocessed_data/varying_data_abs/'+str(idx+1)+'_Subject'+subject[idx]+'_data.npy',varied_data)
 

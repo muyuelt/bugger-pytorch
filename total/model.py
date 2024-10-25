@@ -63,40 +63,74 @@ class EEGNet(nn.Module):
         return y
 
 
-class same_EEGNet(nn.Module):
+class vary_attention_EEGNet(nn.Module):
     def __init__(self):
-        super(same_EEGNet, self).__init__()
-        self.block1 = nn.Sequential(
-            nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False),
-            nn.BatchNorm2d(8),
-            nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8),
-            nn.BatchNorm2d(16),
-            nn.ELU(),
-            nn.AvgPool2d(kernel_size=(1, 4)),
-            nn.Dropout(p=0.5),
-            # D*F1 == F2
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 16), bias=False,
-                      padding=(0, 8), groups=16),
-            nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 1), bias=False),
-            nn.BatchNorm2d(16),
-            nn.ELU(),
-            nn.AvgPool2d(kernel_size=(1, 8)),
-            nn.Dropout(p=0.5),
-            nn.Flatten()
-        )
-        self.f1 = nn.Linear(16 * (170 // 32) * 2, 5)
-    def forward(self,x1,x2):
-        x1 = torch.reshape(x1, (len(x1), 1, 21, 170))
-        x2 = torch.reshape(x2,(len(x2), 1, 21, 170))
-        x1 = self.block1(x1)
-        x2 = self.block1(x2)
-        x = torch.cat((x1, x2), dim=1)
-        return self.f1(x)
+        super(vary_attention_EEGNet,self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False)
+        self.vary_pool1 = nn.AvgPool2d(kernel_size=(1,100),stride=1,padding=(0,50))
+        self.vary_conv1 = nn.Conv2d(in_channels=1,out_channels=8,kernel_size=(1,1))
+        self.bn1 = nn.BatchNorm2d(8)
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(21, 1), bias=False, groups=8)
+        self.vary_pool2 = nn.AvgPool2d(kernel_size=(21,1))
+        self.vary_conv2 = nn.Conv2d(in_channels=8,out_channels=16,kernel_size=(1,1))
+        self.bn2 = nn.BatchNorm2d(16)
+        self.ac2 = nn.ELU()
+        self.av2 = nn.AvgPool2d(kernel_size=(1, 4))
+        self.dr2 = nn.Dropout(p=0.5)
+        # D*F1 == F2
+        self.conv3_1 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 16), bias=False,
+                                 padding=(0, 8), groups=16)
+        self.conv3_2 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=(1, 1), bias=False)
+        self.vary_pool3 = nn.AvgPool2d(kernel_size=(1,16),stride=1,padding=(0,8))
+        self.bn3 = nn.BatchNorm2d(16)
+        self.ac3 = nn.ELU()
+        self.av3 = nn.AvgPool2d(kernel_size=(1, 8))
+        self.dr3 = nn.Dropout(p=0.5)
+
+        self.flatten = nn.Flatten()
+        self.f1 = nn.Linear(16*(170//32), 5)
+
+        self.softmax = nn.Softmax()
+
+    def forward(self,x,vary):
+        x = torch.reshape(x, (len(x), 1, 21, 170))
+        vary = torch.reshape(vary, (len(x), 1, 21, 170))
+        vary = self.vary_pool1(vary)
+        vary = self.vary_conv1(vary)
+        vary = self.softmax(vary)*vary.shape[3]
+        vary = self.bn1(vary)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = torch.mul(x,vary)
+        vary = self.vary_pool2(vary)
+        vary = self.vary_conv2(vary)
+        vary = self.bn2(vary)
+        vary = self.av2(vary)
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.ac2(x)
+        x = self.av2(x)
+        x = self.dr2(x)
+        vary = self.vary_pool3(vary)
+        vary = self.softmax(vary)*vary.shape[3]
+        vary = self.bn3(vary)
+        x = self.conv3_1(x)
+        x = self.conv3_2(x)
+        x = self.bn3(x)
+        x = torch.mul(x,vary)
+        x = self.ac3(x)
+        x = self.av3(x)
+        x = self.dr3(x)
+        x = self.flatten(x)
+        y = self.f1(x)
+        return y
+
 
 
 class binary_EEGNet(nn.Module):
-    def __init__(self):
+    def __init__(self,cat_or_add_0_1=True):
         super(binary_EEGNet, self).__init__()
+        self.cat_or_add = cat_or_add_0_1
         self.block1 = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(1, 100), padding=(0, 50), bias=False),
             nn.BatchNorm2d(8),
@@ -135,16 +169,23 @@ class binary_EEGNet(nn.Module):
         )
         self.attn = time_Attention_block(time_length=16 * (170 // 32) * 2,feed_mid_length=16 * (170 // 32))
         self.f1 = nn.Linear(16 * (170 // 32) * 2, 5)
+        self.f2 = nn.Linear(16 * (170 // 32), 5)
 
     def forward(self, x1, x2):
         x1 = torch.reshape(x1, (len(x1), 1, 21, 170))
         x2 = torch.reshape(x2,(len(x2), 1, 21, 170))
         x1 = self.block1(x1)
         x2 = self.block2(x2)
-        x = torch.cat((x1, x2), dim=1)
+        x = None
+        if self.cat_or_add:
+            x = torch.cat((x1, x2), dim=1)
+            x = self.f1(x)
+        else:
+            x = x1 + x2
+            x = self.f2(x)
         # x = x.unsqueeze(dim=0)
         #x = self.attn(x).squeeze(dim=0)
-        return self.f1(x)
+        return x
 
 
 class PrepareForMultiHeadAttention(nn.Module):
@@ -266,7 +307,7 @@ class time_Attention_block(nn.Module):
 
 
 if __name__ =='__main__':
-    model = binary_EEGNet()
+    model = vary_attention_EEGNet()
     output = model(torch.rand((900,1,21,170)),torch.rand((900,1,21,170)))
     print(output.shape)
     # model = time_Attention_block(

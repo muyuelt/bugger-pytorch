@@ -66,7 +66,7 @@ def getdata_inside_subject(K=5,offset=False,offset_num=0,offset_step=1):
 
 def getdata_vary_inside_subject(k=5):
     KF = KFold(n_splits=k, shuffle=True, random_state=0)
-    file_path_data = '..\\preprocessed_data\\varying_data'
+    file_path_data = '..\\preprocessed_data\\varying_data_abs'
     file_path_label = '..\\preprocessed_data\\label'
     files_data = os.listdir(file_path_data)
     files_label = os.listdir(file_path_label)
