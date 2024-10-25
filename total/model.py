@@ -133,10 +133,16 @@ class se_vary(nn.Module):
         self.fc1 = nn.Linear(time_length,time_length//r)
         self.Relu = nn.ReLU()
         self.fc2 = nn.Linear(time_length//r,time_length)
-        self.sig = nn.Sigmoid()
     def forward(self,x):
         x = self.Relu(self.fc1(x))
-        return self.sig(self.fc2(x))
+        x = self.fc2(x)
+        return range(x)
+
+def range(x):
+    time_mean = torch.mean(x,dim=3).unsqueeze(dim=3)
+    time_std = torch.std(x,dim=3).unsqueeze(dim=3)
+    standard = (x-time_mean)/time_std
+    return standard/6+1
 
 
 class binary_EEGNet(nn.Module):
